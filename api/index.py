@@ -2,51 +2,56 @@ from flask import Flask, request
 import telebot
 import google.generativeai as genai
 import os
-import traceback # Added to see detailed errors
 
+# 1. Initialize Flask App
 app = Flask(__name__)
 
-# CONFIGURATION
-# Make sure these match your Vercel Environment Variables exactly
+# 2. Configuration (Get keys from Vercel)
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
-# Setup Gemini
+# 3. Initialize Gemini AI
 if GEMINI_KEY:
     genai.configure(api_key=GEMINI_KEY)
-    # Switched to 'gemini-pro' as it is more stable for text
-    model = genai.GenerativeModel('gemini-pro')
+    # Using 'gemini-1.5-flash' (Standard) - if it fails, try 'gemini-pro'
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    print("Error: GEMINI_API_KEY is missing!")
 
-# Setup Bot
+# 4. Initialize Telegram Bot
 if TELEGRAM_TOKEN:
+    # threaded=False is REQUIRED for Vercel
     bot = telebot.TeleBot(TELEGRAM_TOKEN, threaded=False)
+else:
+    print("Error: TELEGRAM_TOKEN is missing!")
 
+# --- THIS WAS MISSING BEFORE ---
+# 5. The "Brain" (Handle Message)
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    # Check if keys are missing
-    if not GEMINI_KEY:
-        bot.reply_to(message, "Error: GEMINI_API_KEY is missing in Vercel settings.")
-        return
-    if not TELEGRAM_TOKEN:
-        bot.reply_to(message, "Error: TELEGRAM_TOKEN is missing in Vercel settings.")
-        return
-
+    # This function runs whenever a user sends a text message
     try:
-        # Send "Typing..." action so you know it received the message
+        if not GEMINI_KEY:
+            bot.reply_to(message, "⚠️ Error: GEMINI_API_KEY is missing in Vercel.")
+            return
+
+        # Show "typing..." status in Telegram
         bot.send_chat_action(message.chat.id, 'typing')
-        
-        # Generate response
+
+        # Ask Gemini
         response = model.generate_content(message.text)
         
-        # Reply
+        # Send Gemini's answer back to the user
         bot.reply_to(message, response.text)
-        
-    except Exception as e:
-        # detailed error handling
-        error_msg = f"⚠️ Error: {str(e)}"
-        print(error_msg) # Prints to Vercel logs
-        bot.reply_to(message, error_msg) # Sends to Telegram
 
+    except Exception as e:
+        # If something crashes, send the error to the chat
+        error_msg = f"⚠️ System Error: {str(e)}"
+        print(error_msg)
+        bot.reply_to(message, error_msg)
+# -------------------------------
+
+# 6. Webhook Route (Telegram talks to this)
 @app.route('/webhook', methods=['POST'])
 def webhook():
     if request.headers.get('content-type') == 'application/json':
@@ -57,6 +62,10 @@ def webhook():
     else:
         return 'Error', 403
 
+# 7. Health Check Route
 @app.route('/')
 def index():
-    return "Bot is running! Keys loaded: " + str(bool(GEMINI_KEY))
+    status = "Online"
+    if not GEMINI_KEY: status += " | Gemini Key Missing"
+    if not TELEGRAM_TOKEN: status += " | Telegram Token Missing"
+    return status
