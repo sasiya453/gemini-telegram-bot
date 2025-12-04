@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-TOKEN = "PASTE_YOUR_BOT_TOKEN_HERE" 
+TOKEN = "8358437550:AAGPCvQb_sFcOwBnV-FwCXLb6sgzJoLGEy0" 
 
 # Initialize the Bot Application (Global scope to keep it warm if possible)
 bot_app = ApplicationBuilder().token(TOKEN).build()
