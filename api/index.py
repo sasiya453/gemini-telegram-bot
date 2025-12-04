@@ -24,8 +24,9 @@ def handle_message(message):
         
         # Send Gemini's reply back to Telegram
         bot.reply_to(message, reply_text)
-    except Exception as e:
-        bot.reply_to(message, "Sorry, I encountered an error.")
+except Exception as e:
+        # This will send the actual technical error to your chat
+        bot.reply_to(message, f"Error details: {str(e)}")
 
 # The Webhook Route (This is what Telegram calls)
 @app.route('/webhook', methods=['POST'])
@@ -42,3 +43,4 @@ def webhook():
 @app.route('/')
 def index():
     return "Bot is running!"
+
