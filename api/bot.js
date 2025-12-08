@@ -839,51 +839,50 @@ async function handleCallback(callbackQuery) {
     return;
   }
 
-if (data === 'goto_main_menu') {
-  const session = await getSession(userId);
-  const studentRow = await isRegistered(userId);
+  if (data === 'goto_main_menu') {
+    const session = await getSession(userId);
+    const studentRow = await isRegistered(userId);
 
-  // Id of the analytics/result message (fallback to current message)
-  const resultMsgId =
-    session.data.last_result_message_id || callbackQuery.message.message_id;
-  const baseText = session.data.last_result_base;
+    const resultMsgId = session.data.last_result_message_id || null;
+    const baseText = session.data.last_result_base || null;
+    const isResultMessage =
+      resultMsgId && resultMsgId === messageId;
 
-  try {
-    if (baseText) {
-      // Edit message: remove Main Menu line + remove buttons
-      await callTelegram('editMessageText', {
-        chat_id: chatId,
-        message_id: resultMsgId,
-        text: baseText,             // base text only, no "Tap Main Menu..."
-        parse_mode: 'Markdown',
-      });
-
-      // clear stored result info
+    if (isResultMessage) {
+      // Came from the result message: edit it to base text and remove buttons
+      try {
+        await callTelegram('editMessageText', {
+          chat_id: chatId,
+          message_id: resultMsgId,
+          text: baseText || '',
+          parse_mode: 'Markdown',
+        });
+      } catch (e) {
+        console.error('edit result message error', e);
+      }
       session.data.last_result_base = null;
       session.data.last_result_message_id = null;
       await saveSession(session);
     } else {
-      // Fallback: just remove the keyboard
-      await callTelegram('editMessageReplyMarkup', {
-        chat_id: chatId,
-        message_id: resultMsgId,
-        reply_markup: { inline_keyboard: [] },
-      });
+      // Came from a normal menu: delete that menu message
+      try {
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id });
+      } catch (e) {}
+      if (session.data.menu_message_id === messageId) {
+        session.data.menu_message_id = null;
+        await saveSession(session);
+      }
     }
-  } catch (e) {
-    console.error('edit result message on main menu error', e);
-  }
 
-  // Now show new main menu (photo)
-  await showMainMenu(chatId, userId, studentRow || {}, null);
-  return;
-}
+    await showMainMenu(chatId, userId, studentRow || {}, null);
+    return;
+  }
 
   // main menu buttons: delete photo, then open/edit text menu
   if (data === 'menu_practice') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
@@ -896,7 +895,7 @@ if (data === 'goto_main_menu') {
   if (data === 'menu_weekly') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
@@ -909,7 +908,7 @@ if (data === 'goto_main_menu') {
   if (data === 'menu_about') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
@@ -919,6 +918,7 @@ if (data === 'goto_main_menu') {
     return;
   }
 
+  // ----- Practice navigation -----
   if (data.startsWith('practice_subject_')) {
     const id = parseInt(data.split('_').pop(), 10);
     await handleSubjectChosen(chatId, userId, id);
@@ -986,6 +986,7 @@ if (data === 'goto_main_menu') {
     return;
   }
 
+  // ----- Quiz answers / give up -----
   if (data.startsWith('quiz_answer_')) {
     const idx = parseInt(data.split('_').pop(), 10);
     await handleQuizAnswer(callbackQuery, idx);
@@ -997,6 +998,7 @@ if (data === 'goto_main_menu') {
     return;
   }
 
+  // ----- Weekly navigation -----
   if (data === 'weekly_stream_bio') {
     await handleWeeklyStream(chatId, userId, 'bio');
     return;
