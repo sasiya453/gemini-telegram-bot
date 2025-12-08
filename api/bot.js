@@ -809,13 +809,13 @@ async function handleCallback(callbackQuery) {
   const chatId = callbackQuery.message.chat.id;
   const userId = callbackQuery.from.id;
   const messageId = callbackQuery.message.message_id;
-  const isPhoto = !!callbackQuery.message.photo;
+  const isPhoto = !!callbackQuery.message.photo; // true for main-menu photo
 
   await callTelegram('answerCallbackQuery', {
     callback_query_id: callbackQuery.id,
   });
 
-  // Gatekeeper "Done & Start" – delete message then rerun /start
+  // 1) Gatekeeper "Done & Start" – delete gatekeeper message then rerun /start
   if (data === 'done_join') {
     try {
       await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
@@ -824,7 +824,7 @@ async function handleCallback(callbackQuery) {
     return;
   }
 
-  // Registration check – delete video, then either show menu or send again
+  // 2) Registration "I have registered" – delete video, then check
   if (data === 'check_registered') {
     try {
       await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
@@ -832,24 +832,28 @@ async function handleCallback(callbackQuery) {
 
     const studentRow = await isRegistered(userId);
     if (!studentRow) {
+      // Still not registered → show registration video again
       await sendRegistrationPrompt(chatId);
       return;
     }
+    // Registered → show main menu
     await showMainMenu(chatId, userId, studentRow, null);
     return;
   }
 
+  // 3) "Main Menu" button from either:
+  //    - result message (we edit it), or
+  //    - text menus (we delete that menu)
   if (data === 'goto_main_menu') {
     const session = await getSession(userId);
     const studentRow = await isRegistered(userId);
 
     const resultMsgId = session.data.last_result_message_id || null;
     const baseText = session.data.last_result_base || null;
-    const isResultMessage =
-      resultMsgId && resultMsgId === messageId;
+    const isResultMessage = resultMsgId && resultMsgId === messageId;
 
     if (isResultMessage) {
-      // Came from the result message: edit it to base text and remove buttons
+      // Came from the RESULT message: edit it (remove button + hint)
       try {
         await callTelegram('editMessageText', {
           chat_id: chatId,
@@ -864,26 +868,33 @@ async function handleCallback(callbackQuery) {
       session.data.last_result_message_id = null;
       await saveSession(session);
     } else {
-      // Came from a normal menu: delete that menu message
+      // Came from a TEXT MENU (Practice/Weekly/About): delete that menu message
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete menu on goto_main_menu error', e);
+      }
       if (session.data.menu_message_id === messageId) {
         session.data.menu_message_id = null;
         await saveSession(session);
       }
     }
 
+    // Show fresh main-menu photo at the bottom
     await showMainMenu(chatId, userId, studentRow || {}, null);
     return;
   }
 
-  // main menu buttons: delete photo, then open/edit text menu
+  // 4) MAIN MENU buttons (on the photo):
+  //    When clicked, we delete the photo message and open a text menu.
+
   if (data === 'menu_practice') {
     if (isPhoto) {
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete main menu photo (practice) error', e);
+      }
       const session = await getSession(userId);
       session.data.menu_message_id = null;
       await saveSession(session);
@@ -896,7 +907,9 @@ async function handleCallback(callbackQuery) {
     if (isPhoto) {
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete main menu photo (weekly) error', e);
+      }
       const session = await getSession(userId);
       session.data.menu_message_id = null;
       await saveSession(session);
@@ -909,7 +922,9 @@ async function handleCallback(callbackQuery) {
     if (isPhoto) {
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete main menu photo (about) error', e);
+      }
       const session = await getSession(userId);
       session.data.menu_message_id = null;
       await saveSession(session);
@@ -918,7 +933,8 @@ async function handleCallback(callbackQuery) {
     return;
   }
 
-  // ----- Practice navigation -----
+  // 5) PRACTICE NAVIGATION
+
   if (data.startsWith('practice_subject_')) {
     const id = parseInt(data.split('_').pop(), 10);
     await handleSubjectChosen(chatId, userId, id);
@@ -979,14 +995,19 @@ async function handleCallback(callbackQuery) {
           chat_id: chatId,
           message_id: menuId,
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete practice menu before quiz error', e);
+      }
+      session.data.menu_message_id = null;
+      await saveSession(session);
     }
 
     await startPracticeQuiz(chatId, userId, qcount);
     return;
   }
 
-  // ----- Quiz answers / give up -----
+  // 6) QUIZ ANSWERS / GIVE UP
+
   if (data.startsWith('quiz_answer_')) {
     const idx = parseInt(data.split('_').pop(), 10);
     await handleQuizAnswer(callbackQuery, idx);
@@ -998,7 +1019,8 @@ async function handleCallback(callbackQuery) {
     return;
   }
 
-  // ----- Weekly navigation -----
+  // 7) WEEKLY NAVIGATION
+
   if (data === 'weekly_stream_bio') {
     await handleWeeklyStream(chatId, userId, 'bio');
     return;
@@ -1014,7 +1036,11 @@ async function handleCallback(callbackQuery) {
     if (menuId) {
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id: menuId });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete weekly menu (bio) error', e);
+      }
+      session.data.menu_message_id = null;
+      await saveSession(session);
     }
     await startWeeklyQuiz(chatId, userId, 'bio');
     return;
@@ -1026,7 +1052,11 @@ async function handleCallback(callbackQuery) {
     if (menuId) {
       try {
         await callTelegram('deleteMessage', { chat_id: chatId, message_id: menuId });
-      } catch (e) {}
+      } catch (e) {
+        console.error('delete weekly menu (maths) error', e);
+      }
+      session.data.menu_message_id = null;
+      await saveSession(session);
     }
     await startWeeklyQuiz(chatId, userId, 'maths');
     return;
