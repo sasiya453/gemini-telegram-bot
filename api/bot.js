@@ -167,35 +167,44 @@ async function handleStart(msg) {
 async function showMainMenu(chatId, userId, studentRow, messageId = null) {
   const name = studentRow?.full_name || 'Student';
 
+  // reset session state
   await saveSession({
     telegram_id: userId,
     state: 'IDLE',
     data: { student_id: studentRow?.id || null },
   });
 
-  // Show image only first time (when there is no messageId to edit)
-  if (!messageId) {
-    await callTelegram('sendPhoto', {
-      chat_id: chatId,
-      photo: 'https://t.me/MyBotDatabase/3',
-    });
+  // delete previous menu message if we have its id
+  if (messageId) {
+    try {
+      await callTelegram('deleteMessage', {
+        chat_id: chatId,
+        message_id: messageId,
+      });
+    } catch (e) {
+      // ignore failures (e.g. message already deleted)
+      console.error('delete main menu message error', e);
+    }
   }
 
-  await sendOrEditMenu({
-    chatId,
-    messageId,
-    text:
+  // always send main menu as a photo with caption + buttons
+  await callTelegram('sendPhoto', {
+    chat_id: chatId,
+    photo: 'https://t.me/MyBotDatabase/3', // your main menu image
+    caption:
       `👋 Hi *${name}*!\n` +
       'Welcome to the A/L MCQ practice bot.\n\n' +
       'Choose an option:',
-    keyboard: [
-      [{ text: '📚 Practice MCQs', callback_data: 'menu_practice' }],
-      [{ text: '🏆 Weekly Paper', callback_data: 'menu_weekly' }],
-      [{ text: 'ℹ️ About Us', callback_data: 'menu_about' }],
-    ],
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '📚 Practice MCQs', callback_data: 'menu_practice' }],
+        [{ text: '🏆 Weekly Paper', callback_data: 'menu_weekly' }],
+        [{ text: 'ℹ️ About Us', callback_data: 'menu_about' }],
+      ],
+    },
   });
 }
-
 // ---- PRACTICE FLOW ----
 async function handlePracticeMenu(chatId, userId, messageId = null) {
   const session = await getSession(userId);
