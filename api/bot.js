@@ -233,7 +233,7 @@ async function handlePracticeMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '📚 *Practice MCQs*\nSelect a subject:',
+    '📚 *Practice MCQs*\nSelect a subject:ㅤㅤㅤㅤㅤㅤㅤㅤ',
     [
       [
         { text: 'Physics', callback_data: 'practice_subject_1' },
@@ -310,7 +310,7 @@ async function sendLessonChooser(chatId, session) {
   }
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
-  await sendMenuAndStore(session, chatId, 'Select a lesson:', rows);
+  await sendMenuAndStore(session, chatId, 'Select a lesson:ㅤㅤㅤㅤㅤㅤㅤㅤ', rows);
 }
 
 async function sendTermChooser(chatId, session) {
@@ -341,7 +341,7 @@ async function sendTermChooser(chatId, session) {
   });
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
-  await sendMenuAndStore(session, chatId, 'Select a term:', rows);
+  await sendMenuAndStore(session, chatId, 'Select a term:ㅤㅤㅤㅤㅤㅤㅤㅤ', rows);
 }
 
 async function sendQuestionCountChooser(chatId, session) {
@@ -637,7 +637,7 @@ async function handleWeeklyMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '🏆 *Weekly Paper*\nChoose your stream:',
+    '🏆 *Weekly Paper*\nChoose your stream:ㅤㅤㅤㅤㅤㅤㅤㅤ',
     [
       [
         { text: 'Bio Stream', callback_data: 'weekly_stream_bio' },
