@@ -528,7 +528,7 @@ async function handleQuizGiveUp(chatId, userId) {
   await sendPracticeResult(chatId, session, { gaveUp: true });
 }
 
-// ---- RESULT (practice only; weekly not saved) ----
+// ---- RESULT (saves practice to practice_sessions, weekly to weekly_results) ----
 async function sendPracticeResult(chatId, session, opts = {}) {
   const { qcount, score, mode } = session.data;
   const gaveUp = opts.gaveUp;
@@ -549,11 +549,26 @@ async function sendPracticeResult(chatId, session, opts = {}) {
     },
   });
 
-  // Save only practice sessions (not weekly)
-  if (isWeekly) return;
-
   try {
     const studentRow = await isRegistered(session.telegram_id);
+
+    if (isWeekly) {
+      const weekStart =
+        session.data.weekly_week_start || new Date().toISOString().slice(0, 10);
+      const stream = session.data.weekly_stream || 'Bio';
+
+      await supabase.from('weekly_results').insert({
+        week_start: weekStart,
+        telegram_id: session.telegram_id,
+        student_id: studentRow?.id || null,
+        stream,
+        score,
+        total_questions: qcount,
+      });
+      return;
+    }
+
+    // Practice session saving
     const correct = score;
     const total = qcount;
     const now = new Date();
@@ -573,7 +588,7 @@ async function sendPracticeResult(chatId, session, opts = {}) {
       finished_at: now.toISOString(),
     });
   } catch (e) {
-    console.error('Error saving practice session', e);
+    console.error('Error saving result', e);
   }
 }
 
@@ -620,18 +635,16 @@ async function handleWeeklyStream(chatId, stream, messageId = null) {
   });
 }
 
-// Start weekly quiz using weekly_paper_questions + weekly_question_bank
+// ---- Start weekly quiz using weekly_questions + practice_questions ----
 async function startWeeklyQuiz(chatId, userId, stream) {
   let session = await getSession(userId);
 
-  // Latest weekly paper
-  const { data: papers, error: pErr } = await supabase
-    .from('weekly_papers')
-    .select('id, week_start')
-    .order('week_start', { ascending: false })
-    .limit(1);
+  const { data: wq, error } = await supabase
+    .from('weekly_questions')
+    .select('week_start, subject_id, question_id')
+    .order('week_start', { ascending: false });
 
-  if (pErr || !papers || papers.length === 0) {
+  if (error || !wq || wq.length === 0) {
     await callTelegram('sendMessage', {
       chat_id: chatId,
       text: 'Weekly paper is not available yet.',
@@ -639,17 +652,15 @@ async function startWeeklyQuiz(chatId, userId, stream) {
     return;
   }
 
-  const weeklyPaperId = papers[0].id;
-  const streamColumn = stream === 'bio' ? 'bio_stream' : 'maths_stream';
+  const latestWeek = wq[0].week_start;
+  const thisWeekRows = wq.filter((r) => r.week_start === latestWeek);
 
-  const { data: wpq, error: qErr } = await supabase
-    .from('weekly_paper_questions')
-    .select('question_id')
-    .eq('weekly_paper_id', weeklyPaperId)
-    .eq(streamColumn, true)
-    .order('id');
+  const allowedSubjects = stream === 'bio' ? [1, 2, 3] : [1, 2, 4];
+  const filtered = thisWeekRows.filter((r) =>
+    allowedSubjects.includes(r.subject_id)
+  );
 
-  if (qErr || !wpq || wpq.length === 0) {
+  if (filtered.length === 0) {
     await callTelegram('sendMessage', {
       chat_id: chatId,
       text: 'No questions found for this weekly paper.',
@@ -657,14 +668,15 @@ async function startWeeklyQuiz(chatId, userId, stream) {
     return;
   }
 
-  const qIds = wpq.map((r) => r.question_id);
+  const qIds = filtered.map((r) => r.question_id);
 
-  const { data: questions, error: qbErr } = await supabase
-    .from('weekly_question_bank')
+  const { data: questions, error: qErr } = await supabase
+    .from('practice_questions')
     .select('*')
     .in('id', qIds);
 
-  if (qbErr || !questions || questions.length === 0) {
+  if (qErr || !questions || questions.length === 0) {
+    console.error('weekly quiz load error', qErr);
     await callTelegram('sendMessage', {
       chat_id: chatId,
       text: 'Failed to load weekly paper questions.',
@@ -673,7 +685,7 @@ async function startWeeklyQuiz(chatId, userId, stream) {
   }
 
   const map = new Map(questions.map((q) => [q.id, q]));
-  const orderedQuestions = wpq
+  const orderedQuestions = filtered
     .map((r) => map.get(r.question_id))
     .filter(Boolean);
 
@@ -689,8 +701,8 @@ async function startWeeklyQuiz(chatId, userId, stream) {
   session.data = {
     ...session.data,
     mode: 'weekly',
-    weekly_paper_id: weeklyPaperId,
-    weekly_stream: stream,
+    weekly_week_start: latestWeek,
+    weekly_stream: stream === 'bio' ? 'Bio' : 'Maths',
     qcount: orderedQuestions.length,
     questions: orderedQuestions,
     currentIndex: 0,
