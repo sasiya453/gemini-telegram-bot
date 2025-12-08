@@ -196,7 +196,7 @@ async function handlePracticeMenu(chatId, userId, messageId = null) {
   await sendOrEditMenu({
     chatId,
     messageId,
-    text: '📚 *Practice MCQs*\n\nSelect a subject:',
+    text: '📚 *Practice MCQs*\nSelect a subject:',
     keyboard: [
       [
         { text: 'Physics', callback_data: 'practice_subject_1' },
@@ -225,7 +225,7 @@ async function handleSubjectChosen(chatId, userId, subjectId, messageId = null) 
     chatId,
     messageId,
     text:
-      `You selected *${subjectLabel(subjectId)}*.\n\n` +
+      `*${subjectLabel(subjectId)}* selected.\n` +
       'What do you want to practice?',
     keyboard: [
       [{ text: 'Lesson target MCQs', callback_data: 'practice_type_lesson' }],
@@ -332,7 +332,7 @@ async function sendQuestionCountChooser(chatId, session, messageId = null) {
   await sendOrEditMenu({
     chatId,
     messageId,
-    text: 'How many questions do you want?',
+    text: 'How many questions?',
     keyboard: [
       [
         { text: '10', callback_data: 'practice_qcount_10' },
@@ -482,15 +482,22 @@ async function handleQuizAnswer(callbackQuery, chosenIndex) {
     await saveSession(session);
     await callTelegram('sendMessage', {
       chat_id: chatId,
-      text: 'Tap "Next Question" to continue.',
+      text: 'Next question ➡️',
       reply_markup: {
-        inline_keyboard: [[{ text: '➡️ Next Question', callback_data: 'quiz_next' }]],
+        inline_keyboard: [[{ text: '➡️ Next', callback_data: 'quiz_next' }]],
       },
     });
   }
 }
 
-async function handleQuizNext(chatId, userId) {
+async function handleQuizNext(chatId, userId, nextMsgId) {
+  // delete the "Next" message
+  if (nextMsgId) {
+    await callTelegram('deleteMessage', {
+      chat_id: chatId,
+      message_id: nextMsgId,
+    });
+  }
   const session = await getSession(userId);
   if (session.state !== 'QUIZ_ACTIVE') return;
   await sendCurrentQuestion(chatId, session);
@@ -563,7 +570,7 @@ async function handleWeeklyMenu(chatId, messageId = null) {
   await sendOrEditMenu({
     chatId,
     messageId,
-    text: '🏆 *Weekly Paper*\n\nSelect your stream:',
+    text: '🏆 *Weekly Paper*\nChoose your stream:',
     keyboard: [
       [
         { text: 'Bio Stream', callback_data: 'weekly_stream_bio' },
@@ -582,8 +589,7 @@ async function handleWeeklyStream(chatId, stream, messageId = null) {
     messageId,
     text:
       `🏆 *Weekly Paper – ${streamLabel}*\n\n` +
-      'You can attend the paper via the bot (coming soon)\n' +
-      'and view the *Top 10* leaderboard in the Web App.',
+      'Attend the paper via bot (soon) and see Top 10 in the Web App.',
     keyboard: [
       [{ text: '✏️ Attend Paper (soon)', callback_data: 'noop' }],
       [
@@ -732,6 +738,13 @@ async function handleCallback(callbackQuery) {
 
   if (data.startsWith('practice_qcount_')) {
     const qcount = parseInt(data.split('_').pop(), 10);
+
+    // delete the question-count menu before starting quiz
+    await callTelegram('deleteMessage', {
+      chat_id: chatId,
+      message_id: messageId,
+    });
+
     await startPracticeQuiz(chatId, userId, qcount);
     return;
   }
@@ -743,7 +756,7 @@ async function handleCallback(callbackQuery) {
   }
 
   if (data === 'quiz_next') {
-    await handleQuizNext(chatId, userId);
+    await handleQuizNext(chatId, userId, messageId);
     return;
   }
 
