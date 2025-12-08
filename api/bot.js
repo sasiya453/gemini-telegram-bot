@@ -601,16 +601,21 @@ async function handleAbout(chatId) {
 async function handleMessage(message) {
   const chatId = message.chat.id;
   const userId = message.from.id;
-  const text = message.text || '';
+  const text = (message.text || '').trim();
 
-  if (text === '/start') {
+  // Match /start, /start@BotName, /start anything
+  if (text.toLowerCase().startsWith('/start')) {
     await handleStart(message);
-  } else {
-    await callTelegram('sendMessage', {
-      chat_id: chatId,
-      text: 'Use /start to open the main menu.',
-    });
+    return;
   }
+
+  // Optionally ignore non-private chats
+  // if (message.chat.type !== 'private') return;
+
+  await callTelegram('sendMessage', {
+    chat_id: chatId,
+    text: 'Use /start to open the main menu.',
+  });
 }
 
 // ---- CALLBACK HANDLER ----
