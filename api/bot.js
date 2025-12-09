@@ -204,19 +204,18 @@ async function showMainMenu(chatId, userId, studentRow, textMenuId = null) {
   }
 
   // send main menu as photo with caption + inline buttons
+  // REPLACED: Caption and Buttons based on Requirement 1
   await callTelegram('sendPhoto', {
     chat_id: chatId,
     photo: 'https://t.me/MyBotDatabase/8',
     caption:
-      `Hi ${name}! 👋 ✨ Welcome to the A/L MCQ practice bot. 🤖 (AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)\n\n` +
-      '👇 Choose an option:  \n\n' +
-      '📝 Practice MCQs (ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න.)  \n' +
-      '📅 Weekly Paper (සතිපතා ලැබෙන ප්‍රශ්ණ පත්‍රය ලියා ඔබගේ මට්ටම මැනගන්න.)',
+      `Hi *${name}*! 👋 ✨ Welcome to the A/L MCQ practice bot. 🤖 (AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)\n\n` +
+      '👇 Choose an option:',
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📚 Practice MCQs', callback_data: 'menu_practice' }],
-        [{ text: '🏆 Weekly Paper', callback_data: 'menu_weekly' }],
+        [{ text: '📝 Practice MCQs (ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න.)', callback_data: 'menu_practice' }],
+        [{ text: '📅 Weekly Paper (සතිපතා ලැබෙන ප්‍රශ්ණ පත්‍රය ලියා ඔබගේ මට්ටම මැනගන්න.)', callback_data: 'menu_weekly' }],
         [{ text: 'ℹ️ About Us', callback_data: 'menu_about' }],
       ],
     },
@@ -246,22 +245,19 @@ async function handlePracticeMenu(chatId, userId) {
   session.state = 'CHOOSING_SUBJECT';
   session.data = session.data || {};
 
+  // REPLACED: Text and Buttons based on Requirement 2
   await sendMenuAndStore(
     session,
     chatId,
-    '📚 Practice MCQs Select a subject (ඔබට අවශ්‍ය විශය තෝරන්න) 👇:\n\n' +
-      '⚛️ Physics (භෞතික විද්‍යාව)  \n' +
-      '🧪 Chemistry (රසායන විද්‍යාව)  \n' +
-      '🧬 Bio (ජීව විද්‍යාව)  \n' +
-      '📐 Maths (සං‍යුක්ත ගණිතය)',
+    '📚 Practice MCQs Select a subject (ඔබට අවශ්‍ය විශය තෝරන්න) 👇:',
     [
       [
-        { text: 'Physics', callback_data: 'practice_subject_1' },
-        { text: 'Chemistry', callback_data: 'practice_subject_2' },
+        { text: '⚛️ Physics (භෞතික විද්‍යාව)', callback_data: 'practice_subject_1' },
+        { text: '🧪 Chemistry (රසායන විද්‍යාව)', callback_data: 'practice_subject_2' },
       ],
       [
-        { text: 'Bio', callback_data: 'practice_subject_3' },
-        { text: 'Maths', callback_data: 'practice_subject_4' },
+        { text: '🧬 Bio (ජීව විද්‍යාව)', callback_data: 'practice_subject_3' },
+        { text: '📐 Maths (සං‍යුක්ත ගණිතය)', callback_data: 'practice_subject_4' },
       ],
       [{ text: '⬅️ Main Menu', callback_data: 'goto_main_menu' }],
     ]
@@ -277,17 +273,15 @@ async function handleSubjectChosen(chatId, userId, subjectId) {
   session.state = 'CHOOSING_TYPE';
   session.data = { ...session.data, subjectId, practiceType: null, lesson: null, term: null };
 
+  // REPLACED: Text and Buttons based on Requirement 3
   await sendMenuAndStore(
     session,
     chatId,
-    `✅ ${subjectLabel(subjectId)} selected. What do you want to practice? 🤔 (ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)  \n\n` +
-      `📖 Lesson target MCQs (තෝරාගන්නා පාඩමකට අදාල බහුවරණ)  \n` +
-      `🎓 A/L exam target MCQs (මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)  \n` +
-      `🗓️ Term test target MCQs (යම් වාරයකට අදාල බහුවරණ)`,
+    `✅ *${subjectLabel(subjectId)}* selected. What do you want to practice? 🤔 (ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)`,
     [
-      [{ text: 'Lesson target MCQs', callback_data: 'practice_type_lesson' }],
-      [{ text: 'A/L exam target MCQs', callback_data: 'practice_type_exam' }],
-      [{ text: 'Term test target MCQs', callback_data: 'practice_type_term' }],
+      [{ text: '📖 Lesson target MCQs (තෝරාගන්නා පාඩමකට අදාල බහුවරණ)', callback_data: 'practice_type_lesson' }],
+      [{ text: '🎓 A/L exam target MCQs (මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)', callback_data: 'practice_type_exam' }],
+      [{ text: '🗓️ Term test target MCQs (යම් වාරයකට අදාල බහුවරණ)', callback_data: 'practice_type_term' }],
       [{ text: '⬅️ Back to subjects', callback_data: 'menu_practice' }],
     ]
   );
@@ -333,6 +327,7 @@ async function sendLessonChooser(chatId, session) {
   }
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
+  // REPLACED: Text based on Requirement 4
   await sendMenuAndStore(session, chatId, '📍 Select a lesson (ඔබට අවශ්‍ය පාඩම තෝරාගන්න):', rows);
 }
 
@@ -364,12 +359,14 @@ async function sendTermChooser(chatId, session) {
   });
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
+  // REPLACED: Text based on Requirement 5
   await sendMenuAndStore(session, chatId, '📍 Select a term (ඔබට අවශ්‍ය වාරය තෝරාගන්න):', rows);
 }
 
 async function sendQuestionCountChooser(chatId, session) {
   session.state = 'CHOOSING_QCOUNT';
 
+  // REPLACED: Text based on Requirement 6
   await sendMenuAndStore(
     session,
     chatId,
@@ -657,16 +654,15 @@ async function handleWeeklyMenu(chatId, userId) {
   const session = await getSession(userId);
   session.state = 'WEEKLY_MENU';
 
+  // REPLACED: Text and Buttons based on Requirement 7
   await sendMenuAndStore(
     session,
     chatId,
-    '🏆 Weekly Paper Choose your stream (ඔබගේ විශය ධාරාව තෝරන්න) 👇:  \n' +
-      '🩺 Bio stream (විද්‍යා)  \n' +
-      '📐 Maths stream (ගණිත)',
+    '🏆 Weekly Paper Choose your stream (ඔබගේ විශය ධාරාව තෝරන්න) 👇:',
     [
       [
-        { text: 'Bio Stream', callback_data: 'weekly_stream_bio' },
-        { text: 'Maths Stream', callback_data: 'weekly_stream_maths' },
+        { text: '🩺 Bio stream (විද්‍යා)', callback_data: 'weekly_stream_bio' },
+        { text: '📐 Maths stream (ගණිත)', callback_data: 'weekly_stream_maths' },
       ],
       [{ text: '⬅️ Main Menu', callback_data: 'goto_main_menu' }],
     ]
@@ -680,12 +676,11 @@ async function handleWeeklyStream(chatId, userId, stream) {
 
   const streamLabel = stream === 'bio' ? 'Bio Stream' : 'Maths Stream';
 
+  // REPLACED: Text based on Requirement 8
   await sendMenuAndStore(
     session,
     chatId,
-    `🏆 Weekly Paper – ${streamLabel}\n\n` +
-      `Attend the paper now or see the Top 10 in the Web App. ✍️🥇 \n` +
-      `(ප්‍රශ්ණ පත්‍රයට සහභාගී වන්න, නැති නම් වැඩිම ලකුණු ලබාගත් මුල් 10දෙනා බලන්න.)`,
+    `🏆 Weekly Paper – ${streamLabel}\n\nAttend the paper now or see the Top 10 in the Web App. ✍️🥇 \n(ප්‍රශ්ණ පත්‍රයට සහභාගී වන්න, නැති නම් වැඩිම ලකුණු ලබාගත් මුල් 10දෙනා බලන්න.)`,
     [
       [
         {
