@@ -11,6 +11,9 @@ const WEBAPP_URL = process.env.WEBAPP_URL;              // registration mini-app
 const HELP_URL = process.env.HELP_URL || 'https://t.me/your_help_link';
 const TOP10_WEBAPP_URL = process.env.TOP10_WEBAPP_URL || WEBAPP_URL;
 
+// New: Profile editor Web App URL
+const PROFILE_WEBAPP_URL = process.env.PROFILE_WEBAPP_URL || process.env.EDIT_WEBAPP_URL || WEBAPP_URL;
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -877,18 +880,15 @@ async function handleBroadcastMessage(message) {
 
   // Collect content
   if (session.state === 'BROADCAST_AWAITING_CONTENT') {
-    // Save reference to the source message (copy from this chat/message later)
     bc.posts.push({
       src_chat_id: chatId,
       src_message_id: message.message_id,
     });
 
-    // Copy it back as a preview
     const copyRes = await callTelegram('copyMessage', {
       chat_id: chatId,
       from_chat_id: chatId,
       message_id: message.message_id,
-      // If buttons already exist, attach them to preview
       ...(bc.buttons.length
         ? { reply_markup: buildInlineKeyboard(bc.buttons) }
         : {}),
@@ -929,7 +929,6 @@ async function handleBroadcastMessage(message) {
         label = parts[0].trim();
         url = parts.slice(1).join(' - ').trim();
       } else {
-        // Only URL provided
         url = parts[0].trim();
         try {
           const u = new URL(url);
@@ -938,7 +937,7 @@ async function handleBroadcastMessage(message) {
           label = `Link ${autoIndex}`;
         }
       }
-      if (!/^https?:\/\//i.test(url)) continue; // skip invalid
+      if (!/^https?:\/\//i.test(url)) continue;
       newButtons.push({ text: label || `Link ${autoIndex}`, url });
       autoIndex += 1;
     }
@@ -953,7 +952,6 @@ async function handleBroadcastMessage(message) {
 
     bc.buttons = newButtons;
 
-    // Update preview messages with buttons
     for (const mid of bc.preview_message_ids || []) {
       await callTelegram('editMessageReplyMarkup', {
         chat_id: chatId,
@@ -976,7 +974,6 @@ async function handleBroadcastMessage(message) {
 }
 
 async function performBroadcast(session, adminChatId) {
-  // Recipients: all registered students (telegram_id not null)
   const { data: students, error } = await supabase
     .from('students')
     .select('telegram_id')
@@ -1019,7 +1016,6 @@ async function performBroadcast(session, adminChatId) {
         failed += 1;
       }
     }
-    // Optional throttle to be gentle with rate limits
     await new Promise((r) => setTimeout(r, 20));
   }
 
@@ -1029,11 +1025,43 @@ async function performBroadcast(session, adminChatId) {
   });
 }
 
+// ---- EDIT PROFILE: prompt ----
+async function sendEditProfilePrompt(chatId, userId) {
+  if (!PROFILE_WEBAPP_URL) {
+    await callTelegram('sendMessage', {
+      chat_id: chatId,
+      text: 'Profile editor is not configured. Please set PROFILE_WEBAPP_URL.',
+    });
+    return;
+  }
+  const url =
+    PROFILE_WEBAPP_URL +
+    (PROFILE_WEBAPP_URL.includes('?') ? '&' : '?') +
+    `mode=edit&tg_id=${userId}`;
+
+  await callTelegram('sendMessage', {
+    chat_id: chatId,
+    text: 'Open the Web App to edit your profile:',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '✏️ Edit Profile', web_app: { url } }],
+        [{ text: '❌ Cancel', callback_data: 'noop' }],
+      ],
+    },
+  });
+}
+
 // ---- MESSAGE HANDLER ----
 async function handleMessage(message) {
   const chatId = message.chat.id;
   const userId = message.from.id;
   const text = (message.text || '').trim();
+
+  // /editprofile for everyone
+  if (text.toLowerCase().startsWith('/editprofile')) {
+    await sendEditProfilePrompt(chatId, userId);
+    return;
+  }
 
   // Admin broadcast command
   if (text.toLowerCase().startsWith('/broadcast')) {
