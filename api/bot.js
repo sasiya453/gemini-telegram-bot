@@ -14,6 +14,14 @@ const TOP10_WEBAPP_URL = process.env.TOP10_WEBAPP_URL || WEBAPP_URL;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Admins (comma-separated Telegram user IDs), e.g. "123,456"
+const ADMIN_IDS = (process.env.TELEGRAM_ADMIN_IDS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .map((n) => Number(n))
+  .filter((n) => Number.isFinite(n));
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ---- BASIC TELEGRAM HELPERS ----
@@ -26,6 +34,10 @@ async function callTelegram(method, params) {
   const data = await res.json();
   if (!data.ok) console.error('Telegram error', method, data);
   return data;
+}
+
+function isAdmin(userId) {
+  return ADMIN_IDS.includes(Number(userId));
 }
 
 // Send or edit a TEXT menu, and return Telegram API response
@@ -776,11 +788,272 @@ async function handleAbout(chatId, userId) {
   );
 }
 
+// ---------------------------
+// BROADCAST (Admins only)
+// ---------------------------
+function buildInlineKeyboard(buttons = []) {
+  // One button per row
+  return {
+    inline_keyboard: buttons.map((b) => [{ text: b.text, url: b.url }]),
+  };
+}
+
+async function sendOrEditBroadcastControlMenu(session, chatId) {
+  const bc = session.data.broadcast || { posts: [], buttons: [] };
+  const text =
+    `📣 Broadcast builder\n` +
+    `Posts in queue: ${bc.posts?.length || 0}\n` +
+    `Buttons: ${bc.buttons?.length || 0}\n\n` +
+    `Choose an option:`;
+
+  const keyboard = [
+    [
+      { text: '➕ Send another post', callback_data: 'bc_add_post' },
+      { text: '🔗 Add buttons', callback_data: 'bc_add_buttons' },
+    ],
+    [
+      { text: '✅ Confirm sending', callback_data: 'bc_confirm' },
+      { text: '❌ Cancel', callback_data: 'bc_cancel' },
+    ],
+  ];
+
+  const controlId = bc.control_message_id || null;
+  const res = await sendOrEditMenu({
+    chatId,
+    messageId: controlId,
+    text,
+    keyboard,
+  });
+  const newId = res?.result?.message_id ?? controlId;
+
+  session.data.broadcast.control_message_id = newId;
+  await saveSession(session);
+}
+
+async function startBroadcast(chatId, userId) {
+  let session = await getSession(userId);
+  if (!isAdmin(userId)) {
+    await callTelegram('sendMessage', {
+      chat_id: chatId,
+      text: 'You are not allowed to use this command.',
+    });
+    return;
+  }
+
+  session.state = 'BROADCAST_AWAITING_CONTENT';
+  session.data = session.data || {};
+  session.data.broadcast = {
+    posts: [],
+    buttons: [],
+    preview_message_ids: [],
+    control_message_id: null,
+  };
+  await saveSession(session);
+
+  await callTelegram('sendMessage', {
+    chat_id: chatId,
+    text:
+      'Send the post you want to broadcast (text, photo, video, etc.).\n' +
+      'You can add multiple posts. When done, choose options below.',
+  });
+}
+
+async function handleBroadcastMessage(message) {
+  const chatId = message.chat.id;
+  const userId = message.from.id;
+  let session = await getSession(userId);
+
+  if (!isAdmin(userId)) return false;
+  if (!session.state || !session.state.startsWith('BROADCAST_')) return false;
+
+  session.data = session.data || {};
+  session.data.broadcast = session.data.broadcast || {
+    posts: [],
+    buttons: [],
+    preview_message_ids: [],
+    control_message_id: null,
+  };
+  const bc = session.data.broadcast;
+
+  // Collect content
+  if (session.state === 'BROADCAST_AWAITING_CONTENT') {
+    // Save reference to the source message (copy from this chat/message later)
+    bc.posts.push({
+      src_chat_id: chatId,
+      src_message_id: message.message_id,
+    });
+
+    // Copy it back as a preview
+    const copyRes = await callTelegram('copyMessage', {
+      chat_id: chatId,
+      from_chat_id: chatId,
+      message_id: message.message_id,
+      // If buttons already exist, attach them to preview
+      ...(bc.buttons.length
+        ? { reply_markup: buildInlineKeyboard(bc.buttons) }
+        : {}),
+    });
+
+    const previewId = copyRes?.result?.message_id;
+    if (previewId) {
+      bc.preview_message_ids.push(previewId);
+    }
+
+    await saveSession(session);
+    await sendOrEditBroadcastControlMenu(session, chatId);
+    return true;
+  }
+
+  // Collect buttons
+  if (session.state === 'BROADCAST_AWAITING_BUTTONS') {
+    const text = (message.text || '').trim();
+    if (!text) {
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text:
+          'Please send buttons in lines like:\n' +
+          'Button 1 - https://example.com\n' +
+          'Button 2 - https://another.com',
+      });
+      return true;
+    }
+
+    const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+    const newButtons = [];
+    let autoIndex = 1;
+    for (const line of lines) {
+      let label = '';
+      let url = '';
+      const parts = line.split(' - ');
+      if (parts.length >= 2) {
+        label = parts[0].trim();
+        url = parts.slice(1).join(' - ').trim();
+      } else {
+        // Only URL provided
+        url = parts[0].trim();
+        try {
+          const u = new URL(url);
+          label = u.hostname.replace(/^www\./, '');
+        } catch {
+          label = `Link ${autoIndex}`;
+        }
+      }
+      if (!/^https?:\/\//i.test(url)) continue; // skip invalid
+      newButtons.push({ text: label || `Link ${autoIndex}`, url });
+      autoIndex += 1;
+    }
+
+    if (!newButtons.length) {
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'No valid buttons detected. Please try again.',
+      });
+      return true;
+    }
+
+    bc.buttons = newButtons;
+
+    // Update preview messages with buttons
+    for (const mid of bc.preview_message_ids || []) {
+      await callTelegram('editMessageReplyMarkup', {
+        chat_id: chatId,
+        message_id: mid,
+        reply_markup: buildInlineKeyboard(bc.buttons),
+      });
+    }
+
+    session.state = 'BROADCAST_READY';
+    await saveSession(session);
+    await callTelegram('sendMessage', {
+      chat_id: chatId,
+      text: 'Buttons added and preview updated.',
+    });
+    await sendOrEditBroadcastControlMenu(session, chatId);
+    return true;
+  }
+
+  return false;
+}
+
+async function performBroadcast(session, adminChatId) {
+  // Recipients: all registered students (telegram_id not null)
+  const { data: students, error } = await supabase
+    .from('students')
+    .select('telegram_id')
+    .not('telegram_id', 'is', null);
+
+  if (error) {
+    console.error('broadcast recipients load error', error);
+    await callTelegram('sendMessage', {
+      chat_id: adminChatId,
+      text: 'Failed to load recipients.',
+    });
+    return;
+  }
+
+  const ids = Array.from(
+    new Set(
+      (students || [])
+        .map((s) => Number(s.telegram_id))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    )
+  );
+
+  const bc = session.data.broadcast || { posts: [], buttons: [] };
+  const keyboard = bc.buttons?.length ? buildInlineKeyboard(bc.buttons) : null;
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const uid of ids) {
+    for (const post of bc.posts) {
+      try {
+        await callTelegram('copyMessage', {
+          chat_id: uid,
+          from_chat_id: post.src_chat_id,
+          message_id: post.src_message_id,
+          ...(keyboard ? { reply_markup: keyboard } : {}),
+        });
+        sent += 1;
+      } catch (e) {
+        failed += 1;
+      }
+    }
+    // Optional throttle to be gentle with rate limits
+    await new Promise((r) => setTimeout(r, 20));
+  }
+
+  await callTelegram('sendMessage', {
+    chat_id: adminChatId,
+    text: `Broadcast finished.\nDelivered: ${sent}\nFailed: ${failed}\nRecipients: ${ids.length}\nPosts: ${bc.posts.length}`,
+  });
+}
+
 // ---- MESSAGE HANDLER ----
 async function handleMessage(message) {
   const chatId = message.chat.id;
   const userId = message.from.id;
   const text = (message.text || '').trim();
+
+  // Admin broadcast command
+  if (text.toLowerCase().startsWith('/broadcast')) {
+    if (!isAdmin(userId)) {
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'You are not allowed to use this command.',
+      });
+      return;
+    }
+    await startBroadcast(chatId, userId);
+    return;
+  }
+
+  // Handle ongoing broadcast states (admins)
+  const session = await getSession(userId);
+  if (isAdmin(userId) && session.state && session.state.startsWith('BROADCAST_')) {
+    const handled = await handleBroadcastMessage(message);
+    if (handled) return;
+  }
 
   if (text.toLowerCase().startsWith('/start')) {
     await handleStart(message);
@@ -805,12 +1078,79 @@ async function handleCallback(callbackQuery) {
     callback_query_id: callbackQuery.id,
   });
 
+  // Broadcast admin controls
+  if (isAdmin(userId) && data.startsWith('bc_')) {
+    let session = await getSession(userId);
+    session.data = session.data || {};
+    session.data.broadcast = session.data.broadcast || {
+      posts: [],
+      buttons: [],
+      preview_message_ids: [],
+      control_message_id: null,
+    };
+
+    if (data === 'bc_add_post') {
+      session.state = 'BROADCAST_AWAITING_CONTENT';
+      await saveSession(session);
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'Send another post (text/photo/video/etc)...',
+      });
+      return;
+    }
+
+    if (data === 'bc_add_buttons') {
+      session.state = 'BROADCAST_AWAITING_BUTTONS';
+      await saveSession(session);
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text:
+          'Send buttons (one per line) in the format:\n' +
+          'Button 1 - https://example.com\n' +
+          'Button 2 - https://another.com',
+      });
+      return;
+    }
+
+    if (data === 'bc_confirm') {
+      if (!session.data.broadcast.posts?.length) {
+        await callTelegram('sendMessage', {
+          chat_id: chatId,
+          text: 'No posts to send. Please add at least one post.',
+        });
+        return;
+      }
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'Broadcast started. Please wait...',
+      });
+      await performBroadcast(session, chatId);
+
+      // Reset state
+      session.state = 'IDLE';
+      session.data.broadcast = null;
+      await saveSession(session);
+      return;
+    }
+
+    if (data === 'bc_cancel') {
+      session.state = 'IDLE';
+      session.data.broadcast = null;
+      await saveSession(session);
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: 'Broadcast cancelled.',
+      });
+      return;
+    }
+  }
+
   // Gatekeeper "Done & Start" – delete message then rerun /start
   if (data === 'done_join') {
     try {
       await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
     } catch (e) {}
-    await handleStart({ chat: { id: chatId }, from: { id: userId } });
+    await handleStart({ chat: { id: chatId }, from: { id: callbackQuery.from.id } });
     return;
   }
 
