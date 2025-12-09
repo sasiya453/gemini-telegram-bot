@@ -252,10 +252,6 @@ function subjectLabel(id) {
   return { 1: 'Physics', 2: 'Chemistry', 3: 'Bio', 4: 'Maths' }[id] || 'Subject';
 }
 
-function subjectEmoji(id) {
-  return { 1: '🧲', 2: '🧪', 3: '🦠', 4: '🧮' }[id] || '';
-}
-
 async function handleSubjectChosen(chatId, userId, subjectId) {
   const session = await getSession(userId);
   session.state = 'CHOOSING_TYPE';
@@ -446,10 +442,9 @@ async function sendCurrentQuestion(chatId, session) {
   const q = questions[currentIndex];
 
   const subjectName = subjectLabel(q.subject_id);
-  const em = subjectEmoji(q.subject_id);
 
   const text =
-    `*${em}Q${currentIndex + 1}/${qcount} - ${subjectName}*\n\n` +
+    `*Q${currentIndex + 1}/${qcount} - ${subjectName}*\n\n` +
     `${q.question}\n\n` +
     `A) ${q.answer_1}\n` +
     `B) ${q.answer_2}\n` +
@@ -500,12 +495,10 @@ async function handleQuizAnswer(callbackQuery, chosenIndex) {
     is_correct: isCorrect,
   });
 
-  const em = subjectEmoji(q.subject_id);
-
   const resultText =
-    `*${em}Q${currentIndex + 1}:* ${q.question}\n\n` +
-    `* Correct answer: ${answerLabel(correct)}\n` +
-    `* Your answer: ${answerLabel(chosenIndex)}\n\n` +
+    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `✅ Correct answer: *${answerLabel(correct)}*\n` +
+    `📝 Your answer: *${answerLabel(chosenIndex)}*\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
 
   await callTelegram('editMessageText', {
@@ -550,11 +543,9 @@ async function handleQuizGiveUp(callbackQuery) {
     is_correct: false,
   });
 
-  const em = subjectEmoji(q.subject_id);
-
   const resultText =
-    `*${em}Q${currentIndex + 1}:* ${q.question}\n\n` +
-    `* Correct answer: ${answerLabel(correct)}\n` +
+    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `✅ Correct answer: *${answerLabel(correct)}*\n` +
     `🚩 You gave up this question.\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
 
