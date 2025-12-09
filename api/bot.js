@@ -445,7 +445,7 @@ async function sendCurrentQuestion(chatId, session) {
 
   const text =
     `*Q${currentIndex + 1}/${qcount} - ${subjectName}*\n\n` +
-    `${q.question}\n\n` +
+    `*${q.question}*\n\n` +
     `A) ${q.answer_1}\n` +
     `B) ${q.answer_2}\n` +
     `C) ${q.answer_3}\n` +
@@ -496,7 +496,7 @@ async function handleQuizAnswer(callbackQuery, chosenIndex) {
   });
 
   const resultText =
-    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `*Q${currentIndex + 1}:* *${q.question}*\n\n` +
     `✅ Correct answer: *${answerLabel(correct)}*\n` +
     `📝 Your answer: *${answerLabel(chosenIndex)}*\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
@@ -544,7 +544,7 @@ async function handleQuizGiveUp(callbackQuery) {
   });
 
   const resultText =
-    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `*Q${currentIndex + 1}:* *${q.question}*\n\n` +
     `✅ Correct answer: *${answerLabel(correct)}*\n` +
     `🚩 You gave up this question.\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
