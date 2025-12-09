@@ -436,15 +436,35 @@ function answerLabel(idx) {
   return ['A', 'B', 'C', 'D'][idx - 1] || '?';
 }
 
+function numberToKeycap(n) {
+  const map = {
+    '0': '0️⃣',
+    '1': '1️⃣',
+    '2': '2️⃣',
+    '3': '3️⃣',
+    '4': '4️⃣',
+    '5': '5️⃣',
+    '6': '6️⃣',
+    '7': '7️⃣',
+    '8': '8️⃣',
+    '9': '9️⃣',
+  };
+  return String(n)
+    .split('')
+    .map((ch) => map[ch] || ch)
+    .join('');
+}
+
 // ---- COMMON QUESTION SENDER (works for practice & weekly) ----
 async function sendCurrentQuestion(chatId, session) {
   const { questions, currentIndex, qcount } = session.data;
   const q = questions[currentIndex];
 
   const subjectName = subjectLabel(q.subject_id);
+  const qNumEmoji = numberToKeycap(currentIndex + 1);
 
   const text =
-    `*Q${currentIndex + 1}/${qcount} - ${subjectName}*\n\n` +
+    `*Q${qNumEmoji}/${qcount} - ${subjectName}*\n\n` +
     `${q.question}\n\n` +
     `A) ${q.answer_1}\n` +
     `B) ${q.answer_2}\n` +
@@ -495,10 +515,13 @@ async function handleQuizAnswer(callbackQuery, chosenIndex) {
     is_correct: isCorrect,
   });
 
+  const qNumEmoji = numberToKeycap(currentIndex + 1);
+  const wrongMark = isCorrect ? '' : ' ❌';
+
   const resultText =
-    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `*Q${qNumEmoji}:* ${q.question}\n\n` +
     `✅ Correct answer: *${answerLabel(correct)}*\n` +
-    `📝 Your answer: *${answerLabel(chosenIndex)}*\n\n` +
+    `📝 Your answer: *${answerLabel(chosenIndex)}*${wrongMark}\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
 
   await callTelegram('editMessageText', {
@@ -543,8 +566,10 @@ async function handleQuizGiveUp(callbackQuery) {
     is_correct: false,
   });
 
+  const qNumEmoji = numberToKeycap(currentIndex + 1);
+
   const resultText =
-    `*Q${currentIndex + 1}:* ${q.question}\n\n` +
+    `*Q${qNumEmoji}:* ${q.question}\n\n` +
     `✅ Correct answer: *${answerLabel(correct)}*\n` +
     `🚩 You gave up this question.\n\n` +
     (q.explanation ? `*Explanation:* ${q.explanation}` : '');
