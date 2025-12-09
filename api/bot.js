@@ -7,13 +7,12 @@ const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 const CHANNEL_USERNAME = process.env.TELEGRAM_CHANNEL_USERNAME;
 const CHANNEL_URL = process.env.TELEGRAM_CHANNEL_URL;
 
-const WEBAPP_URL = process.env.WEBAPP_URL; // registration mini-app
+const WEBAPP_URL = process.env.WEBAPP_URL;              // registration mini-app
 const HELP_URL = process.env.HELP_URL || 'https://t.me/your_help_link';
 const TOP10_WEBAPP_URL = process.env.TOP10_WEBAPP_URL || WEBAPP_URL;
 
 // New: Profile editor Web App URL
-const PROFILE_WEBAPP_URL =
-  process.env.PROFILE_WEBAPP_URL || process.env.EDIT_WEBAPP_URL || WEBAPP_URL;
+const PROFILE_WEBAPP_URL = process.env.PROFILE_WEBAPP_URL || process.env.EDIT_WEBAPP_URL || WEBAPP_URL;
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -131,9 +130,8 @@ async function sendRegistrationPrompt(chatId) {
     chat_id: chatId,
     video: 'https://t.me/MyBotDatabase/4',
     caption:
-      '👋 *Welcome to A/L MCQ Bot*\n\n' +
-      '*You are not registered yet.* Please sign up using the Web App.\n\n' +
-      '*Steps:*\n' +
+      '👋 Welcome to A/L MCQ Bot.\n\n' +
+      'You are *not registered* yet. Please sign up using the Web App.\n\n' +
       '1️⃣ Tap *Register / Login*\n' +
       '2️⃣ Complete the form\n' +
       '3️⃣ Return here and tap *I have registered*.',
@@ -159,9 +157,8 @@ async function handleStart(msg) {
       chat_id: chatId,
       photo: 'https://t.me/MyBotDatabase/7',
       caption:
-        '*📢 Join our channel first*\n\n' +
-        'To use the *A/L MCQ bot*, please join our channel.\n\n' +
-        'After joining, tap *"Done & Start"*.',
+        '📢 Please join our channel before using the A/L MCQ bot.\n\n' +
+        'After joining, tap "Done & Start".',
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
@@ -211,12 +208,10 @@ async function showMainMenu(chatId, userId, studentRow, textMenuId = null) {
     chat_id: chatId,
     photo: 'https://t.me/MyBotDatabase/9',
     caption:
-      `*Hi ${name}!* 👋\n` +
-      `*Welcome to the A/L MCQ practice bot.* 🤖\n` +
-      `_(AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)_\n\n` +
-      '*👇 Choose an option:*  \n\n' +
-      '📝 *Practice MCQs* – _ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න._  \n' +
-      '📅 *Weekly Paper* – _සතිපතා ලැබෙන ප්‍රශ්ණ පත්‍රය ලියා ඔබගේ මට්ටම මැනගන්න._',
+      `Hi ${name}! 👋 ✨ Welcome to the A/L MCQ practice bot. 🤖 (AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)\n\n` +
+      '👇 Choose an option:  \n\n' +
+      '• Practice MCQs 📝 (ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න.)  \n' +
+      '• Weekly Paper 📅 (සතිපතා ලැබෙන ප්‍රශ්ණ පත්‍රය ලියා ඔබගේ මට්ටම මැනගන්න.)',
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [
@@ -254,12 +249,11 @@ async function handlePracticeMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '*📚 Practice MCQs*\n' +
-      '*Select a subject* _(ඔබට අවශ්‍ය විශය තෝරන්න)_ 👇:\n\n' +
-      '⚛️ *Physics* _(භෞතික විද්‍යාව)_  \n' +
-      '🧪 *Chemistry* _(රසායන විද්‍යාව)_  \n' +
-      '🧬 *Bio* _(ජීව විද්‍යාව)_  \n' +
-      '📐 *Maths* _(සං‍යුක්ත ගණිතය)_',
+    '📚 Practice MCQs Select a subject (ඔබට අවශ්‍ය විශය තෝරන්න) 👇:\n\n' +
+      '• Physics ⚛️ (භෞතික විද්‍යාව)  \n' +
+      '• Chemistry 🧪 (රසායන විද්‍යාව)  \n' +
+      '• Bio 🧬 (ජීව විද්‍යාව)  \n' +
+      '• Maths 📐 (සං‍යුක්ත ගණිතය)',
     [
       [
         { text: 'Physics', callback_data: 'practice_subject_1' },
@@ -281,22 +275,15 @@ function subjectLabel(id) {
 async function handleSubjectChosen(chatId, userId, subjectId) {
   const session = await getSession(userId);
   session.state = 'CHOOSING_TYPE';
-  session.data = {
-    ...session.data,
-    subjectId,
-    practiceType: null,
-    lesson: null,
-    term: null,
-  };
+  session.data = { ...session.data, subjectId, practiceType: null, lesson: null, term: null };
 
   await sendMenuAndStore(
     session,
     chatId,
-    `✅ *${subjectLabel(subjectId)} selected.*\n` +
-      `*What do you want to practice?* 🤔 _(ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)_  \n\n` +
-      `📖 *Lesson target MCQs* _(තෝරාගන්නා පාඩමකට අදාල බහුවරණ)_  \n` +
-      `🎓 *A/L exam target MCQs* _(මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)_  \n` +
-      `🗓️ *Term test target MCQs* _(යම් වාරයකට අදාල බහුවරණ)_`,
+    `✅ ${subjectLabel(subjectId)} selected. What do you want to practice? 🤔 (ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)  \n\n` +
+      `• Lesson target MCQs 📖 (තෝරාගන්නා පාඩමකට අදාල බහුවරණ)  \n` +
+      `• A/L exam target MCQs 🎓 (මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)  \n` +
+      `• Term test target MCQs 🗓️ (යම් වාරයකට අදාල බහුවරණ)`,
     [
       [{ text: 'Lesson target MCQs', callback_data: 'practice_type_lesson' }],
       [{ text: 'A/L exam target MCQs', callback_data: 'practice_type_exam' }],
@@ -346,12 +333,7 @@ async function sendLessonChooser(chatId, session) {
   }
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
-  await sendMenuAndStore(
-    session,
-    chatId,
-    '📍 *Select a lesson* _(ඔබට අවශ්‍ය පාඩම තෝරාගන්න)_:',
-    rows
-  );
+  await sendMenuAndStore(session, chatId, '📍 Select a lesson (ඔබට අවශ්‍ය පාඩම තෝරාගන්න):', rows);
 }
 
 async function sendTermChooser(chatId, session) {
@@ -382,12 +364,7 @@ async function sendTermChooser(chatId, session) {
   });
   rows.push([{ text: '⬅️ Back', callback_data: 'menu_practice' }]);
 
-  await sendMenuAndStore(
-    session,
-    chatId,
-    '📍 *Select a term* _(ඔබට අවශ්‍ය වාරය තෝරාගන්න)_:',
-    rows
-  );
+  await sendMenuAndStore(session, chatId, '📍 Select a term (ඔබට අවශ්‍ය වාරය තෝරාගන්න):', rows);
 }
 
 async function sendQuestionCountChooser(chatId, session) {
@@ -396,7 +373,7 @@ async function sendQuestionCountChooser(chatId, session) {
   await sendMenuAndStore(
     session,
     chatId,
-    '*❓ How many questions?* _(ඔබට බහුවරණ කීයක් අවශ්‍යද?)_',
+    '❓ How many questions? (ඔබට බහුවරණ කීයක් අවශ්‍යද?)',
     [
       [
         { text: '10', callback_data: 'practice_qcount_10' },
@@ -683,10 +660,9 @@ async function handleWeeklyMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '*🏆 Weekly Paper*\n' +
-      '*Choose your stream* _(ඔබගේ විශය ධාරාව තෝරන්න)_ 👇:  \n' +
-      '🩺 *Bio stream* _(විද්‍යා)_  \n' +
-      '📐 *Maths stream* _(ගණිත)_',
+    '🏆 Weekly Paper Choose your stream (ඔබගේ විශය ධාරාව තෝරන්න) 👇:  \n' +
+      '• Bio stream 🩺 (විද්‍යා)  \n' +
+      '• Maths stream 📐 (ගණිත)',
     [
       [
         { text: 'Bio Stream', callback_data: 'weekly_stream_bio' },
@@ -707,15 +683,14 @@ async function handleWeeklyStream(chatId, userId, stream) {
   await sendMenuAndStore(
     session,
     chatId,
-    `*🏆 Weekly Paper – ${streamLabel}*\n\n` +
-      `*Attend the paper now* or *see the Top 10* in the Web App. ✍️🥇 \n` +
-      `_(ප්‍රශ්ණ පත්‍රයට සහභාගී වන්න, නැති නම් වැඩිම ලකුණු ලබාගත් මුල් 10දෙනා බලන්න.)`,
+    `🏆 Weekly Paper – ${streamLabel}\n\n` +
+      `Attend the paper now or see the Top 10 in the Web App. ✍️🥇 \n` +
+      `(ප්‍රශ්ණ පත්‍රයට සහභාගී වන්න, නැති නම් වැඩිම ලකුණු ලබාගත් මුල් 10දෙනා බලන්න.)`,
     [
       [
         {
           text: '✏️ Attend Paper',
-          callback_data:
-            stream === 'bio' ? 'weekly_attend_bio' : 'weekly_attend_maths',
+          callback_data: stream === 'bio' ? 'weekly_attend_bio' : 'weekly_attend_maths',
         },
       ],
       [
@@ -820,10 +795,10 @@ async function handleAbout(chatId, userId) {
     session,
     chatId,
     'ℹ️ *About Us*\n\n' +
-      '*This bot helps A/L students practice MCQs* in Physics, Chemistry, Bio and Maths.\n' +
-      '• *Lesson, term and exam‑target practice*\n' +
-      '• *Weekly mixed papers* with rankings\n' +
-      '• Web App is used only for *registration* and *Top 10 leaderboard*.',
+      'This bot helps A/L students practice MCQs in Physics, Chemistry, Bio and Maths.\n' +
+      '• Lesson, term and exam‑target practice\n' +
+      '• Weekly mixed papers with rankings\n' +
+      '• Web App is used only for registration and Top 10 leaderboard.',
     [[{ text: '⬅️ Main Menu', callback_data: 'goto_main_menu' }]]
   );
 }
@@ -1246,10 +1221,7 @@ async function handleCallback(callbackQuery) {
   if (data === 'menu_practice') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', {
-          chat_id: chatId,
-          message_id: messageId,
-        });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
@@ -1262,10 +1234,7 @@ async function handleCallback(callbackQuery) {
   if (data === 'menu_weekly') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', {
-          chat_id: chatId,
-          message_id: messageId,
-        });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
@@ -1278,10 +1247,7 @@ async function handleCallback(callbackQuery) {
   if (data === 'menu_about') {
     if (isPhoto) {
       try {
-        await callTelegram('deleteMessage', {
-          chat_id: chatId,
-          message_id: messageId,
-        });
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
       } catch (e) {}
       const session = await getSession(userId);
       session.data.menu_message_id = null;
