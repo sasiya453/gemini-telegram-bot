@@ -208,10 +208,9 @@ async function showMainMenu(chatId, userId, studentRow, textMenuId = null) {
     chat_id: chatId,
     photo: 'https://t.me/MyBotDatabase/9',
     caption:
-      `Hi ${name}! 👋 ✨ \n' +
-      '*Welcome to the A/L MCQ practice bot. 🤖 (AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)*\n\n` +
+      `Hi ${name}! 👋 ✨ \n *Welcome to the A/L MCQ practice bot. 🤖 (AL MCQ BOT වෙතට ඔබව සාදරයෙන් පිළිගන්නවා.)*\n\n` +
       '*👇 Choose an option:*  \n\n' +
-      '*• Practice MCQs* 📝 (ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න.)  \n' +
+      '*• Practice MCQs* 📝 (ඔබට අවශ්‍ය විශයට අදාල බහුවරණ, පාඩම් වශයෙන්, වාර වශයෙන් හෝ උසස් පෙල විභාගයට අදාලව පුහුණුවීම් කරන්න.)  \n\n' +
       '*• Weekly Paper* 📅 (සතිපතා ලැබෙන ප්‍රශ්ණ පත්‍රය ලියා ඔබගේ මට්ටම මැනගන්න.)',
     parse_mode: 'Markdown',
     reply_markup: {
@@ -250,11 +249,11 @@ async function handlePracticeMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '📚 Practice MCQs Select a subject (ඔබට අවශ්‍ය විශය තෝරන්න) 👇:\n\n' +
-      '• Physics ⚛️ (භෞතික විද්‍යාව)  \n' +
-      '• Chemistry 🧪 (රසායන විද්‍යාව)  \n' +
-      '• Bio 🧬 (ජීව විද්‍යාව)  \n' +
-      '• Maths 📐 (සං‍යුක්ත ගණිතය)',
+    '*📚 Practice MCQs Select a subject (ඔබට අවශ්‍ය විශය තෝරන්න)* 👇:\n\n' +
+      '*• Physics* ⚛️ (භෞතික විද්‍යාව)  \n' +
+      '*• Chemistry* 🧪 (රසායන විද්‍යාව)  \n' +
+      '*• Bio* 🧬 (ජීව විද්‍යාව)  \n' +
+      '*• Maths* 📐 (සං‍යුක්ත ගණිතය)',
     [
       [
         { text: 'Physics', callback_data: 'practice_subject_1' },
@@ -281,10 +280,10 @@ async function handleSubjectChosen(chatId, userId, subjectId) {
   await sendMenuAndStore(
     session,
     chatId,
-    `✅ ${subjectLabel(subjectId)} selected. What do you want to practice? 🤔 (ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)  \n\n` +
-      `• Lesson target MCQs 📖 (තෝරාගන්නා පාඩමකට අදාල බහුවරණ)  \n` +
-      `• A/L exam target MCQs 🎓 (මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)  \n` +
-      `• Term test target MCQs 🗓️ (යම් වාරයකට අදාල බහුවරණ)`,
+    `✅ ${subjectLabel(subjectId)} selected. *What do you want to practice? 🤔 (ඔබට පුහුණු වීමට අවශ්‍ය ක්‍රමය තෝරන්න)*  \n\n` +
+      `*• Lesson target MCQs* 📖 (තෝරාගන්නා පාඩමකට අදාල බහුවරණ)  \n\n` +
+      `*• A/L exam target MCQs* 🎓 (මුලු විෂය නිර්දේශයම ආවරණය වන පරිදි බහුවරණ)  \n\n` +
+      `*• Term test target MCQs* 🗓️ (යම් වාරයකට අදාල බහුවරණ)`,
     [
       [{ text: 'Lesson target MCQs', callback_data: 'practice_type_lesson' }],
       [{ text: 'A/L exam target MCQs', callback_data: 'practice_type_exam' }],
@@ -661,9 +660,9 @@ async function handleWeeklyMenu(chatId, userId) {
   await sendMenuAndStore(
     session,
     chatId,
-    '🏆 Weekly Paper Choose your stream (ඔබගේ විශය ධාරාව තෝරන්න) 👇:  \n' +
-      '• Bio stream 🩺 (විද්‍යා)  \n' +
-      '• Maths stream 📐 (ගණිත)',
+    '🏆 *Weekly Paper Choose your stream (ඔබගේ විශය ධාරාව තෝරන්න) 👇:*  \n\n' +
+      '*• Bio stream* 🩺 (විද්‍යා)  \n' +
+      '*• Maths stream* 📐 (ගණිත)',
     [
       [
         { text: 'Bio Stream', callback_data: 'weekly_stream_bio' },
@@ -684,8 +683,8 @@ async function handleWeeklyStream(chatId, userId, stream) {
   await sendMenuAndStore(
     session,
     chatId,
-    `🏆 Weekly Paper – ${streamLabel}\n\n` +
-      `Attend the paper now or see the Top 10 in the Web App. ✍️🥇 \n` +
+    `*🏆 Weekly Paper –* ${streamLabel}\n\n` +
+      `*Attend the paper now or see the Top 10 in the Web App.* ✍️🥇 \n` +
       `(ප්‍රශ්ණ පත්‍රයට සහභාගී වන්න, නැති නම් වැඩිම ලකුණු ලබාගත් මුල් 10දෙනා බලන්න.)`,
     [
       [
