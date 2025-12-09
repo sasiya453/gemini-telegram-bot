@@ -270,6 +270,7 @@ async function handlePracticeMenu(chatId, userId) {
       [{ text: '⬅️ Main Menu', callback_data: 'goto_main_menu' }],
     ]
   );
+}
 
 function subjectLabel(id) {
   return { 1: 'Physics', 2: 'Chemistry', 3: 'Bio', 4: 'Maths' }[id] || 'Subject';
@@ -343,6 +344,7 @@ async function sendLessonChooser(chatId, session) {
     '📍 *Select a lesson* _(ඔබට අවශ්‍ය පාඩම තෝරාගන්න)_:',
     rows
   );
+}
 
 async function sendTermChooser(chatId, session) {
   const subjectId = session.data.subjectId;
@@ -378,6 +380,7 @@ async function sendTermChooser(chatId, session) {
     '📍 *Select a term* _(ඔබට අවශ්‍ය වාරය තෝරාගන්න)_:',
     rows
   );
+}
 
 async function sendQuestionCountChooser(chatId, session) {
   session.state = 'CHOOSING_QCOUNT';
